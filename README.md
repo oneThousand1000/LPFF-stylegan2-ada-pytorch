@@ -1,6 +1,8 @@
 This is a slighted modified version of StyleGAN2-ADA that is compatible with the LPFF dataset. We made the following modifications:
 
 1. Modified `./training/dataset.py` so that it iterates the dataset according to our file name list.
+1. Modified `./training/training_loop.py`.
+1. Added a `camera_sample_mode`  option that sets camera sample mode.  
 
 # Original readme
 

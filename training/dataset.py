@@ -39,6 +39,7 @@ class Dataset(torch.utils.data.Dataset):
         # Apply max_size.
         self._raw_idx = np.arange(self._raw_shape[0], dtype=np.int64)
         if (max_size is not None) and (self._raw_idx.size > max_size):
+            raise Exception('max size should be None')
             np.random.RandomState(random_seed).shuffle(self._raw_idx)
             self._raw_idx = np.sort(self._raw_idx[:max_size])
 
@@ -155,19 +156,46 @@ class ImageFolderDataset(Dataset):
     def __init__(self,
         path,                   # Path to directory or zip.
         resolution      = None, # Ensure specific resolution, None = highest available.
+        camera_sample_mode = None,
         **super_kwargs,         # Additional arguments for the Dataset base class.
     ):
         self._path = path
         self._zipfile = None
 
-        if os.path.isdir(self._path):
-            self._type = 'dir'
-            self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files in os.walk(self._path) for fname in files}
-        elif self._file_ext(self._path) == '.zip':
-            self._type = 'zip'
-            self._all_fnames = set(self._get_zipfile().namelist())
+        if camera_sample_mode is not None:
+            # print('self._all_fnames: ',self._all_fnames)
+            valid_camera_sample_mode = ['FFHQ_LPFF',  # yes
+                         'FFHQ_LPFF_rebalanced',  # yes
+                         'LPFF',  # yes
+                         'FFHQ']  # yes
+            if camera_sample_mode not in valid_camera_sample_mode:
+                raise IOError(f'camera_sample_mode must be in {valid_camera_sample_mode}')
+            if os.path.isdir(self._path):
+                self._type = 'dir'
+                self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files in
+                                    os.walk(self._path) for fname in files}
+            elif self._file_ext(self._path) == '.zip':
+                self._type = 'zip'
+                self._all_fnames = set(self._get_zipfile().namelist())
+            else:
+                raise IOError('Path must point to a directory or zip')
+
+            rebalanced_file_name = camera_sample_mode
+            rebalanced_file = f'{rebalanced_file_name}.json'
+            with self._open_file(rebalanced_file) as f:
+                rebalanced_fnames = json.load(f)
+
+            json_file_names = sorted(fname for fname in self._all_fnames if 'json' in fname)
+            self._all_fnames = rebalanced_fnames + json_file_names
         else:
-            raise IOError('Path must point to a directory or zip')
+            if os.path.isdir(self._path):
+                self._type = 'dir'
+                self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files in os.walk(self._path) for fname in files}
+            elif self._file_ext(self._path) == '.zip':
+                self._type = 'zip'
+                self._all_fnames = set(self._get_zipfile().namelist())
+            else:
+                raise IOError('Path must point to a directory or zip')
 
         PIL.Image.init()
         self._image_fnames = sorted(fname for fname in self._all_fnames if self._file_ext(fname) in PIL.Image.EXTENSION)
@@ -176,6 +204,7 @@ class ImageFolderDataset(Dataset):
 
         name = os.path.splitext(os.path.basename(self._path))[0]
         raw_shape = [len(self._image_fnames)] + list(self._load_raw_image(0).shape)
+        self.raw_shape = raw_shape
         if resolution is not None and (raw_shape[2] != resolution or raw_shape[3] != resolution):
             raise IOError('Image files do not match the specified resolution')
         super().__init__(name=name, raw_shape=raw_shape, **super_kwargs)

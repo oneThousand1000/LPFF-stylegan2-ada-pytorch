@@ -1,0 +1,3 @@
+python train.py --outdir=./training-runs/FFHQ_LPFF  --data=E:\data\FFHQ\LPFF_FFHQ_stylegan.zip  --gpus=1 --cfg=stylegan2 --mirror=1 --kimg=35000  --camera_sample_mode=FFHQ_LPFF --resume=F:\cvpr2023\LPFF-dataset\networks\stylegan2ada/FFHQ_LPFF.pkl
+
+python train.py --outdir=./training-runs/FFHQ_LPFF_rebalanced  --data=E:\data\FFHQ\LPFF_FFHQ_stylegan.zip  --gpus=1 --cfg=stylegan2 --mirror=1 --kimg=35000  --resume=F:\cvpr2023\LPFF-dataset\networks\stylegan2ada/FFHQ_LPFF.pkl --camera_sample_mode=FFHQ_LPFF_rebalanced

@@ -23,7 +23,7 @@ from torch_utils.ops import grid_sample_gradfix
 
 import legacy
 from metrics import metric_main
-
+from metrics import metric_utils
 #----------------------------------------------------------------------------
 
 def setup_snapshot_image_grid(training_set, random_seed=0):
@@ -110,6 +110,7 @@ def training_loop(
     ada_interval            = 4,        # How often to perform ADA adjustment?
     ada_kimg                = 500,      # ADA adjustment speed, measured in how many kimg it takes for p to increase/decrease by one unit.
     total_kimg              = 25000,    # Total length of the training, measured in thousands of real images.
+    resume_kimg             = 0,
     kimg_per_tick           = 4,        # Progress snapshot interval.
     image_snapshot_ticks    = 50,       # How often to save image snapshots? None = disable.
     network_snapshot_ticks  = 50,       # How often to save network snapshots? None = disable.
@@ -139,6 +140,7 @@ def training_loop(
     if rank == 0:
         print()
         print('Num images: ', len(training_set))
+        print('Raw shape: ', training_set.raw_shape)
         print('Image shape:', training_set.image_shape)
         print('Label shape:', training_set.label_shape)
         print()
@@ -245,7 +247,7 @@ def training_loop(
     if rank == 0:
         print(f'Training for {total_kimg} kimg...')
         print()
-    cur_nimg = 0
+    cur_nimg = resume_kimg
     cur_tick = 0
     tick_start_nimg = cur_nimg
     tick_start_time = time.time()
@@ -371,8 +373,10 @@ def training_loop(
             if rank == 0:
                 print('Evaluating metrics...')
             for metric in metrics:
+                print('Sample camera from ', training_set_kwargs['camera_sample_mode'])
+                progress = metric_utils.ProgressMonitor(verbose=True)
                 result_dict = metric_main.calc_metric(metric=metric, G=snapshot_data['G_ema'],
-                    dataset_kwargs=training_set_kwargs, num_gpus=num_gpus, rank=rank, device=device)
+                    dataset_kwargs=training_set_kwargs, num_gpus=num_gpus, rank=rank, device=device,progress=progress)
                 if rank == 0:
                     metric_main.report_metric(result_dict, run_dir=run_dir, snapshot_pkl=snapshot_pkl)
                 stats_metrics.update(result_dict.results)

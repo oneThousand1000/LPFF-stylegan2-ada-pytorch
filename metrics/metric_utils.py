@@ -181,7 +181,8 @@ def compute_feature_stats_for_dataset(opts, detector_url, detector_kwargs, rel_l
     dataset = dnnlib.util.construct_class_by_name(**opts.dataset_kwargs)
     if data_loader_kwargs is None:
         data_loader_kwargs = dict(pin_memory=True, num_workers=3, prefetch_factor=2)
-
+    if opts.rank == 0:
+        print('Num images: ', len(dataset))
     # Try to lookup from cache.
     cache_file = None
     if opts.cache:

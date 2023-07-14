@@ -1,3 +1,9 @@
+This is a slighted modified version of StyleGAN2-ADA that is compatible with the LPFF dataset. We made the following modifications:
+
+1. Modified `./training/dataset.py` so that it iterates the dataset according to our file name list.
+
+# Original readme
+
 ## StyleGAN2-ADA &mdash; Official PyTorch implementation
 
 ![Teaser image](./docs/stylegan2-ada-teaser-1024x252.png)

@@ -41,6 +41,7 @@ def setup_training_loop_kwargs(
     cond       = None, # Train conditional model based on dataset labels: <bool>, default = False
     subset     = None, # Train with only N images: <int>, default = all
     mirror     = None, # Augment dataset with x-flips: <bool>, default = False
+    camera_sample_mode = None,
 
     # Base config.
     cfg        = None, # Base config: 'auto' (default), 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar'
@@ -56,6 +57,7 @@ def setup_training_loop_kwargs(
 
     # Transfer learning.
     resume     = None, # Load previous network: 'noresume' (default), 'ffhq256', 'ffhq512', 'ffhq1024', 'celebahq256', 'lsundog256', <file>, <url>
+    resume_kimg= None,
     freezed    = None, # Freeze-D: <int>, default = 0 discriminator layers
 
     # Performance options (not included in desc).
@@ -104,13 +106,13 @@ def setup_training_loop_kwargs(
 
     assert data is not None
     assert isinstance(data, str)
-    args.training_set_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False)
+    args.training_set_kwargs = dnnlib.EasyDict(class_name='training.dataset.ImageFolderDataset', path=data, use_labels=True, max_size=None, xflip=False, camera_sample_mode = None)
     args.data_loader_kwargs = dnnlib.EasyDict(pin_memory=True, num_workers=3, prefetch_factor=2)
     try:
         training_set = dnnlib.util.construct_class_by_name(**args.training_set_kwargs) # subclass of training.dataset.Dataset
         args.training_set_kwargs.resolution = training_set.resolution # be explicit about resolution
         args.training_set_kwargs.use_labels = training_set.has_labels # be explicit about labels
-        args.training_set_kwargs.max_size = len(training_set) # be explicit about dataset size
+        args.training_set_kwargs.max_size = None # be explicit about dataset size
         desc = training_set.name
         del training_set # conserve memory
     except IOError as err:
@@ -141,6 +143,8 @@ def setup_training_loop_kwargs(
     if mirror:
         desc += '-mirror'
         args.training_set_kwargs.xflip = True
+
+    args.training_set_kwargs.camera_sample_mode = camera_sample_mode
 
     # ------------------------------------
     # Base config: cfg, gamma, kimg, batch
@@ -310,6 +314,10 @@ def setup_training_loop_kwargs(
         desc += '-resumecustom'
         args.resume_pkl = resume # custom path or url
 
+    if resume_kimg is None:
+        resume_kimg = 0
+    args.resume_kimg = resume_kimg
+
     if resume != 'noresume':
         args.ada_kimg = 100 # make ADA react faster at the beginning
         args.ema_rampup = None # disable EMA rampup
@@ -411,6 +419,8 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--cond', help='Train conditional model based on dataset labels [default: false]', type=bool, metavar='BOOL')
 @click.option('--subset', help='Train with only N images [default: all]', type=int, metavar='INT')
 @click.option('--mirror', help='Enable dataset x-flips [default: false]', type=bool, metavar='BOOL')
+@click.option('--camera_sample_mode', help='camera_sample_mode', type=str)
+
 
 # Base config.
 @click.option('--cfg', help='Base config [default: auto]', type=click.Choice(['auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar']))
@@ -426,6 +436,7 @@ class CommaSeparatedList(click.ParamType):
 
 # Transfer learning.
 @click.option('--resume', help='Resume training [default: noresume]', metavar='PKL')
+@click.option('--resume-kimg', help='resume start training duration', type=int, metavar='INT')
 @click.option('--freezed', help='Freeze-D [default: 0 layers]', type=int, metavar='INT')
 
 # Performance options.
